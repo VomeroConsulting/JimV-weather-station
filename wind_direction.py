@@ -4,9 +4,10 @@
 # @ https://projects.raspberrypi.org/en/projects/build-your-own-weather-station/7
 
 from gpiozero import MCP3008
+import logging
 
 
-class wind_direction:
+class WindDirection:
     def __init__(self):
         self.vane = MCP3008(channel=0)
         self.volts = {
@@ -28,16 +29,20 @@ class wind_direction:
             0.6: "NNW",
         }
 
+    """ Wind Direction uses a set of reed switches to create a voltage divider.
+    A magnet in the vane can close 1 or 2 switchs thus providing 16 values.
+    It is possible for a measurement to occur when voltages are changing thus
+    producing a invalid result (None)"""
+
     def get_direction(self):
         reading_raw = self.vane.value * 3.3
         reading = round(reading_raw, 1)
+        # logging.info("A2D = {}".format(reading))
         if reading in self.volts:
             result = self.volts[reading]
-            print(result, reading, reading_raw)
-            # return result
-            # return result, reading
-            return result, reading, reading_raw
+            # print(result, reading, reading_raw)
+            return result
         else:
-            print("Vane output not in list:", reading, reading_raw)
-            # return ("None", reading)
-            return "None", reading, reading_raw
+            logging.info("get_direction=None")
+            # print("Vane output not in list:", reading, reading_raw)
+            return "None"

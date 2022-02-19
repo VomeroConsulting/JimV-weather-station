@@ -1,0 +1,6 @@
+*.swp
+*.bak
+*.org
+*.pyc
+*.orig
+__pycache__
