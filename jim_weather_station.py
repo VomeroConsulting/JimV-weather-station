@@ -1,8 +1,14 @@
+from turtle import done
 from gpiozero import Button
 import math
 import time
 import statistics
 import bme280_sensor
+from ws_database import maria_database
+import os
+import mysql.connector as database
+from datetime import datetime
+
 import ds18b20_therm
 
 # from wind_direction import WindDirection
@@ -16,6 +22,31 @@ import logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
 # logging.basicConfig(level=logging.NOTSET)
 
+# Create tuples to identify measurement variables and optional DB columns
+measure_var = (
+    "date_and_time",
+    "wind_speed_average",
+    "wind_speed_gust",
+    "wind_direction_value",
+    "humidity",
+    "pressure",
+    "temperature",
+    "ground_temperature",
+    "rain",
+)
+
+db_columns = (
+    "time",
+    "ws_ave",
+    "ws_max",
+    "w_dir",
+    "humid",
+    "press",
+    "temp",
+    "therm",
+    "rain",
+)
+
 # Global variables
 wind_count = 0  # Global var Counts rotations of anemometer
 wind_measurement_time = 7  # In seconds, Report speed every 5 seconds
@@ -28,16 +59,12 @@ SEC_IN_HOUR = 3600
 MPH_CONVERSION = 1.609344
 ANEMOMETER_FACTOR = 1.18
 BUCKET_SIZE = 0.2794
-# LIST_LENGHT = 3
-
-# store_speeds = []
-# Number_to_average = 0
+WIND_SPEED_SENSOR_BUTTON = 5
+RAIN_SENSOR_BUTTON = 6
 
 # Weather vain specific vaLues
 radius_cm = 9.0  # radius of anemometer
 circumference_cm = 2 * math.pi * radius_cm
-
-# Programable variables
 
 # Interrupt process for Spin connected to GPIO(5)
 def spin():
@@ -45,7 +72,7 @@ def spin():
     wind_count += 1
 
 
-wind_speed_sensor = Button(5)
+wind_speed_sensor = Button(WIND_SPEED_SENSOR_BUTTON)
 wind_speed_sensor.when_activated = spin
 
 
@@ -54,7 +81,7 @@ def bucket_tipped():
     rain_count += 1
 
 
-rain_sensor = Button(6)
+rain_sensor = Button(RAIN_SENSOR_BUTTON)
 rain_sensor.when_pressed = bucket_tipped
 
 
@@ -155,11 +182,20 @@ def main():
     bme = bme280_sensor.temperature_sensor()
     therm = ds18b20_therm.DS18B20()
 
-    start_time = time.time()
-    end_time = start_time + (3 * 60)
+    # Set start time to occur when second changes
+    start_time = int(time.time()) + 1
     logging.debug("Start Time = {:.03f}".format(start_time))
 
+    db = maria_database()
+
+    try:
+        db.open_db()
+        db = maria_database()
+    except Exception as e:
+        logging.debug(f"Error opening MariaDB(): {e}")
+
     while True:
+        params = [time.strftime("%Y-%m-%d %H:%M:%S")]
         logging.debug(
             "Start Time {:.03f} ; Current Time {:.03f}".format(start_time, time.time())
         )
@@ -196,6 +232,20 @@ def main():
         logging.debug("Wind Gust = {}".format(wind_speed_gust))
         logging.debug("Wind Direction = {}".format(wind_direction_value))
 
+        params = [
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            wind_speed_average,
+            wind_speed_gust,
+            wind_direction_value,
+            humidity,
+            pressure,
+            temperature,
+            ground_temperature,
+            rainfall,
+        ]
+
+        db.write_db(params)
+
         # Calculate next start time
         start_time += wind_measurement_interval * 60
 
@@ -229,6 +279,7 @@ if __name__ == "__main__":
     try:
         main()
         exit(0)
-    except Exception:
+    except Exception as e:
         logging.exception("Exception in main(): ")
+        logging.debug(f"Error Exception in main(): {e}")
         exit(1)
