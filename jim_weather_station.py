@@ -186,11 +186,11 @@ def main():
     start_time = int(time.time()) + 1
     logging.debug("Start Time = {:.03f}".format(start_time))
 
-    db = maria_database()
+    # db = maria_database()
 
     try:
-        db.open_db()
         db = maria_database()
+        db.open_db()
     except Exception as e:
         logging.debug(f"Error opening MariaDB(): {e}")
 

@@ -16,7 +16,7 @@ class maria_database:
         self.username = os.environ.get("WS_USERNAME")
         self.password = os.environ.get("WS_PASSWORD")
         self.host = os.environ.get("WS_HOST")
-        if self.username == None or self.passwword == None or self.host == None:
+        if self.username == None or self.password == None or self.host == None:
             # Easy default user used
             self.username = "pi"
             self.password = "raspberry"
@@ -38,11 +38,47 @@ class maria_database:
             "password": self.password,
             "host": self.host,
             "database": self.db_name,
-            "auth_plugin": "mysql_native_password",
         }
+        # "auth_plugin": "mysql_native_password",
+
+        """ User must change db rd/wr based on own implementation."""
+        # Defaults for database read/write
+        self.sql_db_write = os.environ.get("WS_SQL_WRITE")
+        self.sql_db_read = os.environ.get("WS_SQL_READ")
+        sql_read_fields = os.environ.get("WS_SQL_FIELDS")
+
+        if self.sql_db_write == None:
+            self.sql_db_write = "INSERT INTO sensors (time, ws_ave, ws_max, w_dir, humid, press, temp, therm, rain) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            # self.sql_db_write = "INSERT INTO sensors (time, ws_ave, ws_max, w_dir, humid, press, temp, therm, rain) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        if self.sql_db_read == None:
+            self.sql_db_read = "SELECT * FROM sensors ORDER BY id DESC LIMIT 5"
+        if sql_read_fields == None:
+            self.sql_db_fields = (
+                "id",
+                "time",
+                "ws_ave",
+                "ws_max",
+                "w_dir",
+                "humid",
+                "press",
+                "temp",
+                "therm",
+                "rain",
+            )
+        else:
+            self.sql_db_fields = tuple(sql_read_fields)
+
+        self.cursor = None
 
     def open_db(self):
         self.connection = database.connect(**self.connection_params)
+        # self.connection = database.connect(
+        # user=self.username,
+        # password=self.password,
+        # host=self.host,
+        # database=self.db_name,
+        # )
+        self.cursor = self.connection.cursor()
         # self.cursor = self.connection.cursor()
         # try:
         # self.connection = database.connect(**self.connection_params)
@@ -51,14 +87,28 @@ class maria_database:
         # Send exception back to main()
         # logging.debug(f"Error initializiong database connection/cursor: {e}")
         # raise
+        return
 
     def write_db(self, params):
         # Replace any 'None' with NULL in db
-        for i in range(len(params)):
-            if params[i] == "None":
-                params[i] = "NULL"
-        for x in params:
-            print(x)
+        # for i in range(len(params)):
+        #     if params[i] == "None":
+        #         params[i] = "NULL"
+
+        # for x in params:
+        # print(x)
+
+        data = tuple(params)
+        self.cursor.execute(self.sql_db_write, data)
+        self.connection.commit()
+
+    def read_db(self):
+        statement = self.sql_db_read
+        self.cursor.execute(statement)
+        return self.cursor.fetchall()
+
+        # for self.sql_db_fields in self.cursor
+        # print(statement)
 
 
 #     def execute(self, query, params=[]):
@@ -268,7 +318,7 @@ if __name__ == "__main__":
     params.append(1.1)
     params.append(2.2)
     params.append("NNW")
-    params.extend([3.3, 4.4, 5.5])
+    params.extend([3.3, None, 5.5])
     # params.append(3.3)
     # params.append(4.4)
     # params.append(5.5)
@@ -276,3 +326,7 @@ if __name__ == "__main__":
     params.append(7.7)
 
     db.write_db(params)
+
+    read_data = db.read_db()
+    for x in read_data:
+        print(x)
