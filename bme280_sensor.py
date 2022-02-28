@@ -11,7 +11,12 @@ class temperature_sensor:
         self.bus = smbus2.SMBus(self.port)
 
     def read_all_bme820(self):
-        bme280_data = bme280.sample(self.bus, self.address)
+        try:
+            bme280_data = bme280.sample(self.bus, self.address)
+        except Exception as e:
+            # print debuglog statement
+            return None, None, None
+
         return bme280_data.humidity, bme280_data.pressure, bme280_data.temperature
 
     # bme280_load_calibration_params(bus, address)
