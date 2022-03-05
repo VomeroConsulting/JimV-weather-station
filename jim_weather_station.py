@@ -1,4 +1,4 @@
-from turtle import done
+# from turtle import done
 from gpiozero import Button
 import math
 import time
@@ -162,6 +162,7 @@ class WindSpeedDirThread:
         return statistics.mean(self.wind_speed_data)
 
     def get_wind_speed_gust(self):
+
         return max(self.wind_speed_data)
 
     def get_wind_dir_mode(self):
