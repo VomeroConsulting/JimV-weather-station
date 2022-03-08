@@ -1,3 +1,4 @@
+"""Weather Station code"""
 import math
 import time
 import statistics
@@ -14,8 +15,8 @@ import ds18b20_therm
 from ws_database import maria_database
 import wind_direction
 
-# logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(levelname)s:%(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
+# logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(levelname)s:%(message)s")
 
 # Create tuples to identify measurement variables and optional DB columns
 measure_var = (
@@ -97,7 +98,7 @@ class WindSpeedDirThread:
     measurement_count: is number of measurements to aquire
     """
 
-    def __init__(self, thread_name, measurement_time, measurement_count):
+    def __init__(self, measurement_time, measurement_count):
         # super().__init__()
         # Calling the Thread class's init function
         # Thread.__init__(self)
@@ -148,7 +149,8 @@ class WindSpeedDirThread:
             value = self.calculate_dir()
             # value = WindDirection.get_direction()
             self.wind_direction_data.append(value)
-            logging.debug("Wind Dir = {}".format(value))
+            logging.debug("Wind Dir = %s", value)
+            # logging.debug("Wind Dir = {}".format(value))
             # store_speeds.append(speed_km_hr)
             loop_count -= 1
         return
@@ -170,7 +172,6 @@ def main():
     # TBD Should number of number of measurements be such that
     # time will not continue to slip?
     speed_and_dir = WindSpeedDirThread(
-        "thread-SpeedDirection",
         wind_measurement_time,
         wind_measurement_interval * (int(60 / wind_measurement_time)),
     )
@@ -190,7 +191,7 @@ def main():
         db = maria_database()
         db.open_db()
     except Exception as e:
-        logging.warning(f"Error opening MariaDB(): {e}")
+        logging.warning("Error opening MariaDB(): %s", e)
 
     while True:
         logging.debug(
@@ -230,9 +231,9 @@ def main():
         wind_speed_gust = round(wind_speed_gust, 1)
         wind_direction_value = speed_and_dir.get_wind_dir_mode()
 
-        logging.info("Wind Speed = {}".format(wind_speed_average))
-        logging.info("Wind Gust = {}".format(wind_speed_gust))
-        logging.info("Wind Direction = {}".format(wind_direction_value))
+        logging.info("Wind Speed = %.01f", wind_speed_average)
+        logging.info("Wind Gust = %.01f", wind_speed_gust)
+        logging.info("Wind Direction = %.01f", wind_direction_value)
 
         params = [
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -260,6 +261,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         logging.exception("Exception in main(): ")
-        logging.warning(f"Error Exception in main(): {e}")
-    finally:
-        db.close_db()
+        logging.warning("Error Exception in main(): %s", e)

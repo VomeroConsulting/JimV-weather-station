@@ -38,12 +38,12 @@ class WindDirection:
         reading_raw = self.vane.value * 3.22
         reading = round(reading_raw, 1)
         if reading in self.volts:
-            logging.debug("A2D = {}".format(reading))
+            logging.debug("A2D = %.03f", reading_raw)
             result = self.volts[reading]
             # print(result, reading, reading_raw)
             return result
         else:
-            logging.debug("A2D = {} - None".format(reading))
+            logging.debug("A2D = %.03f - None", reading_raw)
             # print("Vane output not in list:", reading, reading_raw)
             return None
 
