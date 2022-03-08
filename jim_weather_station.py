@@ -1,26 +1,21 @@
-# from turtle import done
-from gpiozero import Button
 import math
 import time
 import statistics
-import bme280_sensor
-from ws_database import maria_database
-import os
-import mysql.connector as database
-from datetime import datetime
-
-import ds18b20_therm
-
-# from wind_direction import WindDirection
-import wind_direction
-
-# import ds18b20_therm
-from threading import Thread
-
 import logging
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
-# logging.basicConfig(level=logging.NOTSET)
+from datetime import datetime
+from gpiozero import Button
+
+# Sensor modules
+import bme280_sensor
+import ds18b20_therm
+
+# local modules
+from ws_database import maria_database
+import wind_direction
+
+# logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(levelname)s:%(message)s")
 
 # Create tuples to identify measurement variables and optional DB columns
 measure_var = (
@@ -49,7 +44,7 @@ db_columns = (
 
 # Global variables
 wind_count = 0  # Global var Counts rotations of anemometer
-wind_measurement_time = 7  # In seconds, Report speed every 5 seconds
+wind_measurement_time = 5  # In seconds, Report speed every 5 seconds
 wind_measurement_interval = 1  # In minutes, Measurements recorded every 5 minutes
 rain_count = 0  # Global to count number of times rain bucket tips
 
@@ -128,14 +123,14 @@ class WindSpeedDirThread:
         # try at least twice for a good direction result
         if result == None:
             # None indicate a strange corner case changing between 2 values
-            logging.info("*** Direction Re-Measure ***")
+            logging.debug("*** Direction Re-Measure ***")
             time.sleep(0.01)
             return direction.get_direction()
         else:
             return result
 
     def run(self):
-        logging.debug("Starting Run")
+        logging.info("Starting Wind/Direction Measurement")
         # print("Starting {} Thread".format(self.thread_name))
         global wind_count
         self.wind_direction_data = []
@@ -143,7 +138,7 @@ class WindSpeedDirThread:
         loop_count = self.measurement_count
 
         while loop_count > 0:
-            logging.debug("Loop {} = {:.03f}".format(loop_count, time.time()))
+            logging.info("Loop {} = {:.03f}".format(loop_count, time.time()))
             wind_count = 0
             time.sleep(self.measurement_time)
             temp = self.calculate_speed()
@@ -172,6 +167,8 @@ class WindSpeedDirThread:
 def main():
     # Calculate the number of wind measurements that are made over the measurement time
     # and pass to class initialization
+    # TBD Should number of number of measurements be such that
+    # time will not continue to slip?
     speed_and_dir = WindSpeedDirThread(
         "thread-SpeedDirection",
         wind_measurement_time,
@@ -193,10 +190,9 @@ def main():
         db = maria_database()
         db.open_db()
     except Exception as e:
-        logging.debug(f"Error opening MariaDB(): {e}")
+        logging.warning(f"Error opening MariaDB(): {e}")
 
     while True:
-        params = [time.strftime("%Y-%m-%d %H:%M:%S")]
         logging.debug(
             "Start Time {:.03f} ; Current Time {:.03f}".format(start_time, time.time())
         )
@@ -208,30 +204,35 @@ def main():
         # Run measurements for wind speed and direction
         speed_and_dir.run()
 
+        # Wind speed and direction are measured over time and are now complete.
+        # Capture time stamp and all measurements.
+        # params = [time.strftime("%Y-%m-%d %H:%M:%S")]
+
         # Collect data from other sensors
+        logging.info("Time of Measurement = {:.03f}".format(time.time()))
         humidity, pressure, temperature = bme.read_all_bme820()
-        logging.debug("Humidity = {:.02f}".format(humidity))
-        logging.debug("Pressure = {:.02f}".format(pressure))
-        logging.debug("Temperature = {:.02f}".format(temperature))
+        humidity = round(humidity, 1)
+        pressure = round(pressure, 1)
+        temperature = round(temperature, 1)
+        logging.info("Humidity = {:.01f}".format(humidity))
+        logging.info("Pressure = {:.01f}".format(pressure))
+        logging.info("Temperature = {:.01f}".format(temperature))
 
-        ground_temperature = therm.read_temp()
-        logging.debug("Ground Temperature = {:.02f}".format(ground_temperature))
+        ground_temperature = round(therm.read_temp(), 1)
+        logging.info("Ground Temperature = {:.01f}".format(ground_temperature))
 
-        rainfall = get_and_reset_rainfall()
-        logging.debug("Rainfall = {:.02f}".format(rainfall))
+        rainfall = round(get_and_reset_rainfall(), 3)
+        logging.info("Rainfall = {:.03f}".format(rainfall))
 
         wind_speed_average = speed_and_dir.get_wind_speed_average()
         wind_speed_average = round(wind_speed_average, 1)
         wind_speed_gust = speed_and_dir.get_wind_speed_gust()
         wind_speed_gust = round(wind_speed_gust, 1)
         wind_direction_value = speed_and_dir.get_wind_dir_mode()
-        # speed_and_dir.start(measurement_count)
-        logging.debug("Time and Measurement = {:.03f}".format(time.time()))
-        # speed_and_dir.join()
 
-        logging.debug("Wind Speed = {}".format(wind_speed_average))
-        logging.debug("Wind Gust = {}".format(wind_speed_gust))
-        logging.debug("Wind Direction = {}".format(wind_direction_value))
+        logging.info("Wind Speed = {}".format(wind_speed_average))
+        logging.info("Wind Gust = {}".format(wind_speed_gust))
+        logging.info("Wind Direction = {}".format(wind_direction_value))
 
         params = [
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -245,42 +246,20 @@ def main():
             rainfall,
         ]
 
+        # Write to Weather Station DB
         db.write_db(params)
 
         # Calculate next start time
         start_time += wind_measurement_interval * 60
 
-        logging.debug("Next Start Time = {:.03f}".format(start_time))
-    #    if Number_to_average < LIST_LENGHT:
-    #        Number_to_average = len(store_speeds)
-    #    else:
-    #        store_speeds.pop(0)
-
-    #    wind_count = 0
-    #    wind_direction = []
-
-    #    time.sleep(wind_measurement_time)
-    #    speed_km_hr = calculate_speed(wind_measurement_time)
-    #    store_speeds.append(speed_km_hr)
-
-    #    wind_gust = max(store_speeds)
-    #    wind_speed = statistics.mean(store_speeds)
-
-    #    # speed_mi_hr = speed_km_hr / MPH_CONVERSION
-    #    # 160,934.5 cm in mile, 3600 sec in hour
-    #    # speed_mi_hr = (speed_cm_sec / 160934.4) * 3600
-    #    print("{:5.1f} km/hr, {:5.1f} km/hr".format(speed_km_hr, wind_gust))
-    #    # print("{:5.1f} km/hr : {5.1f} km/hr".format(wind_speed, wind_gust))
-    #    print("{:5.1f} km/hr".format(wind_speed))
-    #    print("{:5.1f} km/hr".format(wind_gust))
-    #    # print("{:5.1f}, mi/hr".format(speed_mi_hr))
+        logging.info("Next Start Time = {:.03f}".format(start_time))
 
 
 if __name__ == "__main__":
     try:
         main()
-        exit(0)
     except Exception as e:
         logging.exception("Exception in main(): ")
-        logging.debug(f"Error Exception in main(): {e}")
-        exit(1)
+        logging.warning(f"Error Exception in main(): {e}")
+    finally:
+        db.close_db()

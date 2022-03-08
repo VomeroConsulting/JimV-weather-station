@@ -23,16 +23,23 @@ class temperature_sensor:
 
 
 if __name__ == "__main__":
-    bme = temperature_sensor()
-    humidity, pressure, temperature = bme.read_all_bme820()
+    import time
 
-    print(
-        "Humidy = ",
-        humidity,
-        " Pressure = ",
-        pressure,
-        "Temp = ",
-        temperature,
-    )
+    loop_count = 0
+
+    while loop_count < 10:
+        bme = temperature_sensor()
+        humidity, pressure, temperature = bme.read_all_bme820()
+
+        print(
+            "Humidy = ",
+            round(humidity, 1),
+            " Pressure = ",
+            round(pressure, 1),
+            "Temp = ",
+            round(temperature, 1),
+        )
+        time.sleep(0.5)
+        loop_count += 1
 
     exit(0)

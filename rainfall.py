@@ -11,8 +11,7 @@ rain_count = 0
 def bucket_tipped():
     global rain_count
     rain_count += 1
-    logging.info("Bucket tipped = {}".format(rain_count))
-    # print(count * BUCKET_SIZE)
+    logging.debug("Bucket tipped = {}".format(rain_count))
 
 
 def get_and_reset_rainfall():
@@ -34,7 +33,7 @@ if __name__ == "__main__":
         time.sleep(10)
 
         rainfall = get_and_reset_rainfall()
-        logging.info("Rainfall over 10 sec = {:.03f}".format(rainfall))
+        print("Rainfall over 10 sec = {:.03f} mm".format(rainfall))
         loop += 1
 
     exit(0)

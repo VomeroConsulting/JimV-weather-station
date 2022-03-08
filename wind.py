@@ -10,8 +10,8 @@ MPH_CONVERSION = 1.609344
 LIST_LENGHT = 3
 
 wind_count = 0
-store_speeds = []
-Number_to_average = 0
+NumberToAverage = 3
+store_speeds = [0.0] * NumberToAverage
 
 # Weather vain specific vaLues
 radius_cm = 9.0
@@ -19,7 +19,8 @@ circumference_cm = 2 * math.pi * radius_cm
 anemometer_factor = 1.18
 
 # Programable variables
-wind_interval = 5  # Report speed every 5 seconds
+wind_count = 0  # Global var Counts rotations of anemometer
+wind_measurement_time = 5  # In seconds, Report speed every 5 seconds
 
 
 def spin():
@@ -37,35 +38,29 @@ def calculate_speed(time_sec):
     # Calculate distance
     dist_km = (circumference_cm * rotations) / CM_IN_A_KM
     speed_km_hr = (dist_km / time_sec) * SEC_IN_HOUR
-    # speed_km_hr = speed_km_sec * SEC_IN_HOUR
-    # speed = speed_km_hr * anemometer_factor
-
     return speed_km_hr * anemometer_factor
 
 
 wind_speed_sensor = Button(5)
 wind_speed_sensor.when_activated = spin
 
+print("CTRL C to exit")
+
 while True:
-    # average wind speed over LIST_LENGET samples
-    if Number_to_average < LIST_LENGHT:
-        Number_to_average = len(store_speeds)
-    else:
-        store_speeds.pop(0)
+    # store_speeds initialized to length of 3, keep popping off 1st
+    # item as program appends new values to end of list
+    store_speeds.pop(0)
 
     wind_count = 0
-    time.sleep(wind_interval)
-    speed_km_hr = calculate_speed(wind_interval)
-    store_speeds.append(speed_km_hr)
+    time.sleep(wind_measurement_time)
+    wind_current = calculate_speed(wind_measurement_time)
+    store_speeds.append(wind_current)
 
     wind_gust = max(store_speeds)
-    wind_speed = statistics.mean(store_speeds)
+    wind_average = statistics.mean(store_speeds)
 
-    # speed_mi_hr = speed_km_hr / MPH_CONVERSION
-    # 160,934.5 cm in mile, 3600 sec in hour
-    # speed_mi_hr = (speed_cm_sec / 160934.4) * 3600
-    print("{:5.1f} km/hr, {:5.1f} km/hr".format(speed_km_hr, wind_gust))
-    # print("{:5.1f} km/hr : {5.1f} km/hr".format(wind_speed, wind_gust))
-    print("{:5.1f} km/hr".format(wind_speed))
-    print("{:5.1f} km/hr".format(wind_gust))
-    # print("{:5.1f}, mi/hr".format(speed_mi_hr))
+    print(
+        "Current: {:5.1f} km/hr, Average: {:5.1f} km/hr, Gust: {:5.1f}".format(
+            wind_current, wind_average, wind_gust
+        )
+    )

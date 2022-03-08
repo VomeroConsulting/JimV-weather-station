@@ -35,15 +35,15 @@ class WindDirection:
     producing a invalid result (None)"""
 
     def get_direction(self):
-        reading_raw = self.vane.value * 3.3
+        reading_raw = self.vane.value * 3.22
         reading = round(reading_raw, 1)
         if reading in self.volts:
-            logging.info("A2D = {}".format(reading))
+            logging.debug("A2D = {}".format(reading))
             result = self.volts[reading]
             # print(result, reading, reading_raw)
             return result
         else:
-            logging.info("A2D = {} - None".format(reading))
+            logging.debug("A2D = {} - None".format(reading))
             # print("Vane output not in list:", reading, reading_raw)
             return None
 
@@ -51,16 +51,17 @@ class WindDirection:
 if __name__ == "__main__":
     import time
 
-    logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s"
-    )
+    # logging.basicConfig(
+    # level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s"
+    # )
 
     d = WindDirection()
     loop = 0
 
-    while count < 100:
+    while loop < 100:
         direction = d.get_direction()
-        logging.info("Wind Dir = {}".format(direction))
+        # logging.info("Wind Dir = {}".format(direction))
+        print("Wind Dir = {}".format(direction))
 
         time.sleep(0.5)
         loop += 1

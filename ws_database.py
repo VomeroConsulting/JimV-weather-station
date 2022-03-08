@@ -1,9 +1,6 @@
 import os
-import mysql.connector as database
-
-# import MySQLdb, datetime, http.client, json, os
-# import io
-# import gzip
+import mysql.connector
+import logging
 
 
 class maria_database:
@@ -12,10 +9,25 @@ class maria_database:
         APP. See SQL sub-directory for setup. The set-up credentials
         includes and user, password and host. Defaults are
         'pi@localhost with "raspberry password"""
+
+        # Initialization of Class variables
+        self.username = None
+        self.password = None
+        self.host = None
+        self.connection = None
+        self.connection_params = None
+        self.cursor = None
+        self.db_name = None
+        self.db_table = None
+        self.db_write_fields = None
+        self.db_read_cmd = None
+        self.db_write_cmd = None
+
         # Allows user to export OS variables for user/password
         self.username = os.environ.get("WS_USERNAME")
         self.password = os.environ.get("WS_PASSWORD")
         self.host = os.environ.get("WS_HOST")
+
         if self.username == None or self.password == None or self.host == None:
             # Easy default user used
             self.username = "pi"
@@ -28,33 +40,25 @@ class maria_database:
         if self.db_name == None:
             self.db_name = "weather_data"
 
-        self.db_table = os.environ.get("WS_TABLE")
+        self.db_table = os.environ.get("WS_DB_TABLE")
         if self.db_table == None:
             self.db_table = "sensors"
 
-        # Set up connection to database
+        # Set up connection parameters to database
         self.connection_params = {
             "user": self.username,
             "password": self.password,
             "host": self.host,
             "database": self.db_name,
         }
-        # "auth_plugin": "mysql_native_password",
 
-        """ User must change db rd/wr based on own implementation."""
+        """ User must change db fields based on own implementation."""
         # Defaults for database read/write
-        self.sql_db_write = os.environ.get("WS_SQL_WRITE")
-        self.sql_db_read = os.environ.get("WS_SQL_READ")
-        sql_read_fields = os.environ.get("WS_SQL_FIELDS")
+        self.db_write_fields = os.environ.get("WS_DB_WRITE_FIELDS")
+        self.db_read_cmd = os.environ.get("WS_DB_READ_CMD")
 
-        if self.sql_db_write == None:
-            self.sql_db_write = "INSERT INTO sensors (time, ws_ave, ws_max, w_dir, humid, press, temp, therm, rain) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            # self.sql_db_write = "INSERT INTO sensors (time, ws_ave, ws_max, w_dir, humid, press, temp, therm, rain) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        if self.sql_db_read == None:
-            self.sql_db_read = "SELECT * FROM sensors ORDER BY id DESC LIMIT 5"
-        if sql_read_fields == None:
-            self.sql_db_fields = (
-                "id",
+        if self.db_write_fields == None:
+            self.db_write_fields = [
                 "time",
                 "ws_ave",
                 "ws_max",
@@ -64,68 +68,54 @@ class maria_database:
                 "temp",
                 "therm",
                 "rain",
+            ]
+
+        # SQL command portion of DB write
+        self.db_write_cmd = (
+            "INSERT INTO {0} ({1}) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)".format(
+                self.db_table, ", ".join(self.db_write_fields)
             )
-        else:
-            self.sql_db_fields = tuple(sql_read_fields)
+        )
 
-        self.cursor = None
+        # SQL read commenad is used only for testing this module,
+        # Weather Station only writes to DB
+        if self.db_read_cmd == None:
+            self.db_read_cmd = "SELECT * FROM {0} ORDER BY id DESC LIMIT 5".format(
+                self.db_table
+            )
 
+    # Opens DB connection and connects cursor
     def open_db(self):
-        self.connection = database.connect(**self.connection_params)
-        # self.connection = database.connect(
-        # user=self.username,
-        # password=self.password,
-        # host=self.host,
-        # database=self.db_name,
-        # )
+        self.connection = mysql.connector.connect(**self.connection_params)
         self.cursor = self.connection.cursor()
-        # self.cursor = self.connection.cursor()
-        # try:
-        # self.connection = database.connect(**self.connection_params)
-        # self.cursor = self.connection.cursor()
-        # except Exception as e:
-        # Send exception back to main()
-        # logging.debug(f"Error initializiong database connection/cursor: {e}")
-        # raise
         return
 
+    # Writes one row to DB
+    # Need to consider error case when connection is temporaly lost,
+    # can queue multiple rows and send when connection restores.
     def write_db(self, params):
-        # Replace any 'None' with NULL in db
-        # for i in range(len(params)):
-        #     if params[i] == "None":
-        #         params[i] = "NULL"
+        try:
+            cmd = self.db_write_cmd
+            data = tuple(params)
+            self.cursor.execute(cmd, data)
+            self.connection.commit()
 
-        # for x in params:
-        # print(x)
+        except self.connector.Error as e:
+            logging.warning(f"Error Exception in write_db(): {e}")
+            self.connection.rollback()
+            raise
 
-        data = tuple(params)
-        self.cursor.execute(self.sql_db_write, data)
-        self.connection.commit()
-
+    # Read DB is only used for testing this module
     def read_db(self):
-        statement = self.sql_db_read
+        statement = self.db_read_cmd
         self.cursor.execute(statement)
         return self.cursor.fetchall()
 
-        # for self.sql_db_fields in self.cursor
-        # print(statement)
-
-
-#     def execute(self, query, params=[]):
-#         try:
-#             self.cursor.execute(query, params)
-#             self.connection.commit()
-#         except:
-#             self.connection.rollback()
-#             raise
-
-#     def query(self, query):
-#         cursor = self.connection.cursor(MySQLdb.cursors.DictCursor)
-#         cursor.execute(query)
-#         return cursor.fetchall()
-
-#     def __del__(self):
-#         self.connection.close()
+    # Closes cursor and connection if opened
+    def close_db(self):
+        if self.connection.is_connected():
+            self.cursor.close()
+            self.connection.close()
 
 
 # class oracle_apex_database:
@@ -310,23 +300,38 @@ class maria_database:
 
 if __name__ == "__main__":
     from datetime import datetime
+    import time
 
+    # Open DB and cursor
     db = maria_database()
     db.open_db()
+
+    # Weather Station data
     params = []
     params.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     params.append(1.1)
     params.append(2.2)
     params.append("NNW")
-    params.extend([3.3, None, 5.5])
-    # params.append(3.3)
-    # params.append(4.4)
-    # params.append(5.5)
+    params.append(3.3)
+    params.append(None)
+    params.append(5.5)
     params.append(6.6)
     params.append(7.7)
 
     db.write_db(params)
 
+    # modify some of the data and update DB
+    time.sleep(1)
+    params[0] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    params[1] += 7
+    params[2] += 7
+    params[3] = "SSE"
+
+    db.write_db(params)
+
+    # Read in some of the data
     read_data = db.read_db()
     for x in read_data:
         print(x)
+
+    db.close_db
