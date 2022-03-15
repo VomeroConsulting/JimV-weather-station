@@ -55,7 +55,6 @@ class maria_database:
         """ User must change db fields based on own implementation."""
         # Defaults for database read/write
         self.db_write_fields = os.environ.get("WS_DB_WRITE_FIELDS")
-        self.db_read_cmd = os.environ.get("WS_DB_READ_CMD")
 
         if self.db_write_fields == None:
             self.db_write_fields = [
@@ -79,6 +78,7 @@ class maria_database:
 
         # SQL read commenad is used only for testing this module,
         # Weather Station only writes to DB
+        self.db_read_cmd = os.environ.get("WS_DB_READ_CMD")
         if self.db_read_cmd == None:
             self.db_read_cmd = "SELECT * FROM {0} ORDER BY id DESC LIMIT 5".format(
                 self.db_table

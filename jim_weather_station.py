@@ -233,7 +233,7 @@ def main():
 
         logging.info("Wind Speed = %.01f", wind_speed_average)
         logging.info("Wind Gust = %.01f", wind_speed_gust)
-        logging.info("Wind Direction = %.01f", wind_direction_value)
+        logging.info("Wind Direction = %3s", wind_direction_value)
 
         params = [
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

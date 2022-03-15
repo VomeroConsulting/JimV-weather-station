@@ -35,7 +35,7 @@ class WindDirection:
     producing a invalid result (None)"""
 
     def get_direction(self):
-        reading_raw = self.vane.value * 3.22
+        reading_raw = self.vane.value * 3.29
         reading = round(reading_raw, 1)
         if reading in self.volts:
             logging.debug("A2D = %.03f", reading_raw)
