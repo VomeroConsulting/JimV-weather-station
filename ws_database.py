@@ -101,7 +101,7 @@ class maria_database:
             self.cursor.execute(cmd, data)
             self.connection.commit()
 
-        except self.connector.Error as e:
+        except self.connection.Error as e:
             logging.warning(f"Error Exception in write_db(): {e}")
             self.connection.rollback()
             raise
