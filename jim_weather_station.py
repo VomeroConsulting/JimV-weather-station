@@ -166,11 +166,13 @@ class WindSpeedDirThread:
         return statistics.mode(self.wind_direction_data)
 
 
-def main():
+def main(arg=None):
     # Calculate the number of wind measurements that are made over the measurement time
     # and pass to class initialization
     # TBD Should number of number of measurements be such that
     # time will not continue to slip?
+    json_file_name = arg
+
     speed_and_dir = WindSpeedDirThread(
         wind_measurement_time,
         wind_measurement_interval * (int(60 / wind_measurement_time)),
@@ -188,7 +190,7 @@ def main():
     # db = maria_database()
 
     try:
-        db = maria_database()
+        db = maria_database(json_file_name)
         db.open_db()
     except Exception as e:
         logging.warning("Error opening MariaDB(): %s", e)
@@ -258,7 +260,9 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        json_file_name = None
+        json_file_name = "json_backend_private.load"
+        main(json_file_name)
     except Exception as e:
         logging.exception("Exception in main(): ")
         logging.warning("Error Exception in main(): %s", e)

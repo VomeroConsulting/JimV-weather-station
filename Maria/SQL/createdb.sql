@@ -21,8 +21,7 @@ CREATE TABLE `sensors` (
 CREATE USER 'frontend'@'localhost' IDENTIFIED BY '123456';
 CREATE USER 'backend'@'localhost' IDENTIFIED BY '123456';
 CREATE USER 'pi'@'localhost' IDENTIFIED BY 'raspberry';
+GRANT SELECT ON weather_data.sensors TO 'frontend'@'localhost';
 GRANT INSERT ON weather_data.sensors TO 'backend'@'localhost';
-GRANT SELECT ON weather_data.* TO 'pi'@'localhost';
-GRANT INSERT ON weather_data.sensors TO 'pi'@'localhost';
-GRANT SELECT ON weather_data.* TO 'frontend'@'localhost';
+GRANT SELECT, INSERT ON weather_data.* TO 'pi'@'localhost';
 FLUSH PRIVILEGES;

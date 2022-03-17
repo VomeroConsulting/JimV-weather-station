@@ -4,3 +4,5 @@
 *.pyc
 *.orig
 __pycache__
+*_private.*
+Maria/SQL/*_private.*
