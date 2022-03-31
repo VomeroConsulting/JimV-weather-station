@@ -1,35 +1,32 @@
-from multiprocessing import connection
 import os
 import mysql.connector
+
+# from mysql.connector import errors
 import logging
 import json
 
 
-class ErrorConnector(Exception):
-    """Raised when error connecting to mysql"""
-
-    pass
-
-
-class ErrorCursor(Exception):
-    """Raised when error with mysql cursor"""
-
+class WarningNetworkIssue(Exception):
     pass
 
 
 class MariaDatabase:
-    def __init__(self, arg=None):
+    def __init__(self, column_names, arg=None):
         """Maria database must be set up before running weather-station
         APP. See SQL sub-directory for setup. The set-up credentials
         includes and user, password and host. Defaults are
         'pi@localhost with "raspberry password"""
+
+        self.column_names = column_names
 
         # Allow for json file to be passed as argument
         if not arg:
             arg = "json_backend.load"
         json_file = arg
 
-        # Allows user to export OS variables, otherwise pick generic defaults
+        # Allows user to export OS variables,
+        # otherwise generic defaults are used unless
+        # overwrites are provided in json file
         self.username = os.environ.get("WS_USERNAME", "pi")
         self.password = os.environ.get("WS_PASSWORD", "raspberry")
         self.host = os.environ.get("WS_HOST", "localhost")
@@ -39,12 +36,14 @@ class MariaDatabase:
         # self.db_write_cmd = os.environ.get("WS_DB_WRITE_CMD")
         # self.db_read_cmd = os.environ.get("WS_DB_READ_CMD")
 
+        # Class specific variables
         self.connection = None
         self.cursor = None
 
         self.failed_connection = 0
 
-        # variables can be overwritten via json file, ignore if json file does not exist
+        # Default variables can be overwritten via json file,
+        # This section is ignored if json file does not exist
         try:
             f = open(json_file, "r")
             credentials = json.load(f)
@@ -66,17 +65,18 @@ class MariaDatabase:
         except:
             logging.info(f"JSON file {json_file} not found")
 
-        # Set up connection parameters to database
+        # Set up Maria DB connection parameters
         self.connection_params = {
             "user": self.username,
             "password": self.password,
             "host": self.host,
             "database": self.db_name,
+            "connection_timeout": 5,
         }
 
         """ User must change db fields based on own implementation.
-        This section of code must be modified based on user implementation."""
-        # Defaults for database read/write can be configured as env variables
+        This section of code must be modified based on user implementation.
+        and match column names in database"""
         self.db_write_fields = [
             "time",
             "ws_ave",
@@ -92,7 +92,7 @@ class MariaDatabase:
         # SQL command portion of DB write
         self.db_write_cmd = (
             "INSERT INTO {0} ({1}) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)".format(
-                self.db_table, ", ".join(self.db_write_fields)
+                self.db_table, ", ".join(self.column_names)
             )
         )
 
@@ -109,7 +109,7 @@ class MariaDatabase:
         """Opens DB connection to host, any error should be caught by calling function"""
         self.connection = mysql.connector.connect(**self.connection_params)
         # self.cursor = self.connection.cursor()
-        # return self.connection.is_connected()
+        return self.connection.is_connected()
 
     # Connect to DB
     def connect_db(self):
@@ -154,7 +154,8 @@ class MariaDatabase:
             self.connection.commit()
             self.cursor.close()
 
-        except self.connection.Error as e:
+        # except self.connection.Error as e:
+        except mysql.connector.Error as e:
             logging.warning(f"Error Exception in write_db(): {e}")
             self.connection.rollback()
             raise
@@ -163,22 +164,47 @@ class MariaDatabase:
     def write_one_db(self, entry):
         # Make sure connection is still good
         try:
-            self.connection.ping(reconnect=True, attempts=3, delay=1)
+            logging.debug("Enter PING\n")
+            # self.connection.ping(reconnect=True, attempts=3, delay=1)
+            if not self.connection.is_connected():
+                raise mysql.connector.errors.InterfaceError
+            logging.debug("Exit PING\n")
             # self.connection.close()
 
             try:
+                logging.debug("Enter Write One - Try\n")
                 self.cursor = self.connection.cursor()
                 cmd = self.db_write_cmd
                 self.cursor.execute(cmd, entry)
                 self.connection.commit()
                 self.cursor.close()
+                logging.debug("Exit Write One - Try\n")
 
-            except self.connection.Error as e:
-                logging.warning(f"Error Exception in write_many_db(): {e}")
+            except (
+                mysql.connector.OperationalError,
+                mysql.connector.errors.InterfaceError,
+            ) as e:
+                logging.debug(
+                    f"Error Exception in write_one_db() Operational Error: {e}"
+                )
+                logging.warning(
+                    f"Error Exception in write_one_db() Operational Error: {e}"
+                )
                 self.connection.rollback()
-                raise ErrorCursor
-        except:
-            raise ErrorConnector
+                raise WarningNetworkIssue
+            except Exception as e:
+                raise
+
+        except (
+            mysql.connector.errors.InterfaceError,
+            mysql.connector.errors.OperationalError,
+        ) as e:
+            logging.debug(f"Error Exception in write_one_db() Operational Error: {e}")
+            logging.warning(f"Error Exception in write_one_db() Operational Error: {e}")
+            raise WarningNetworkIssue
+        except Exception as e:
+            logging.debug(f"Error Exception in write_one_db() NOT Caught: {e}")
+            raise
 
     # Writes multiple rows to DB
     # Need to consider error case when connection is temporaly lost,
@@ -204,13 +230,29 @@ class MariaDatabase:
                 self.connection.commit()
                 self.cursor.close()
 
-            except self.connection.Error as e:
-                logging.warning(f"Error Exception in write_many_db(): {e}")
+            # except errors.DatabaseError as e:
+            # except (mysql.connector.OperationalError) as e:
+            except (
+                mysql.connector.OperationalError,
+                mysql.connector.InterfaceError,
+            ) as e:
+                logging.warning(
+                    f"Error Exception in write_many_db() Operational Error: {e}"
+                )
                 self.connection.rollback()
                 entries = temp_data
-                raise ErrorCursor
-        except:
-            raise ErrorConnector
+                raise WarningNetworkIssue
+            except Exception as e:
+                raise
+
+        except (mysql.connector.OperationalError, mysql.connector.InterfaceError) as e:
+            logging.info(
+                f"Exception in write_many_db() Operational or Interface Error: {e}"
+            )
+            raise WarningNetworkIssue
+
+        except Exception as e:
+            raise
 
     """
     def write_db(self, params):

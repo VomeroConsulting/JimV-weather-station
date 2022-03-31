@@ -12,26 +12,37 @@ import bme280_sensor
 import ds18b20_therm
 
 # local modules
-from ws_database import maria_database
+# from ws_database import MariaDatabase
+from db_interface import MariaDatabase
 import wind_direction
+from data_mgr import DataMgr
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
-# logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(levelname)s:%(message)s")
+"""
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s:%(levelname)s:%(message)s",
+    handlers=[logging.FileHandler("debug.log"), logging.StreamHandler()],
+)
+"""
 
-# Create tuples to identify measurement variables and optional DB columns
-measure_var = (
-    "date_and_time",
-    "wind_speed_average",
-    "wind_speed_gust",
-    "wind_direction_value",
-    "humidity",
-    "pressure",
-    "temperature",
-    "ground_temperature",
-    "rain",
+# root logger to STDERR
+# logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s:%(levelname)s:%(message)s",
 )
 
-db_columns = (
+# Create file logger to captuer errors
+file_log = logging.FileHandler("weather_station.log", "w")
+file_log.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
+file_log.setFormatter(formatter)
+logging.getLogger("").addHandler(file_log)
+
+
+# Create tuples to identify measurement variables and optional DB columns
+"""User must creater list of column names that matches one's own implemenation"""
+column_names = [
     "time",
     "ws_ave",
     "ws_max",
@@ -41,13 +52,30 @@ db_columns = (
     "temp",
     "therm",
     "rain",
-)
+]
+
+"""User must create a list of variable names in same order as column names.
+Carefull, Code uses an eval() statement on these names to populate DB columns."""
+vars2params = [
+    "current_time",
+    "wind_speed_average",
+    "wind_speed_gust",
+    "wind_direction_value",
+    "humidity",
+    "pressure",
+    "temperature",
+    "ground_temperature",
+    "rainfall",
+]
 
 # Global variables
 wind_count = 0  # Global var Counts rotations of anemometer
-wind_measurement_time = 5  # In seconds, Report speed every 5 seconds
-wind_measurement_interval = 1  # In minutes, Measurements recorded every 5 minutes
 rain_count = 0  # Global to count number of times rain bucket tips
+
+"""Wind speed and direction measurements are sampled over a period of time.
+ToDo: Add statement why time will slip with time/interval values"""
+WIND_MEASUREMENT_TIME = 7  # In seconds, Report speed every 7 seconds
+WIND_MEASUREMENT_INTERVAL = 1  # In minutes, Measurements recorded every 5 minutes
 
 # Constants
 CM_IN_A_KM = 100000.0
@@ -59,8 +87,8 @@ WIND_SPEED_SENSOR_BUTTON = 5
 RAIN_SENSOR_BUTTON = 6
 
 # Weather vain specific vaLues
-radius_cm = 9.0  # radius of anemometer
-circumference_cm = 2 * math.pi * radius_cm
+RADIUS_CM = 9.0  # radius of anemometer
+CIRCUMFERENCE_CM = 2 * math.pi * RADIUS_CM
 
 # Interrupt process for Spin connected to GPIO(5)
 def spin():
@@ -72,6 +100,7 @@ wind_speed_sensor = Button(WIND_SPEED_SENSOR_BUTTON)
 wind_speed_sensor.when_activated = spin
 
 
+# Interrupt process for Rain Bucket being tipped
 def bucket_tipped():
     global rain_count
     rain_count += 1
@@ -90,8 +119,6 @@ def get_and_reset_rainfall():
 
 # WindSpeedDirThread class used for measurements requiring integration over time.
 class WindSpeedDirThread:
-    # class WindSpeedDirThread(Thread):
-    # class WindSpeedDirThread(threading.Thread):
     """
     thread_name: Arbitrary name
     measurement_time: is seconds, period of time to make 1 measurement, recomdnd % 60
@@ -113,7 +140,7 @@ class WindSpeedDirThread:
         rotations = wind_count
 
         # Calculate distance
-        dist_km = (circumference_cm * rotations) / CM_IN_A_KM
+        dist_km = (CIRCUMFERENCE_CM * rotations) / CM_IN_A_KM
         speed_km_hr = (dist_km / self.measurement_time) * SEC_IN_HOUR
         return speed_km_hr * ANEMOMETER_FACTOR
 
@@ -166,16 +193,15 @@ class WindSpeedDirThread:
         return statistics.mode(self.wind_direction_data)
 
 
-def main(arg=None):
-    # Calculate the number of wind measurements that are made over the measurement time
-    # and pass to class initialization
-    # TBD Should number of number of measurements be such that
-    # time will not continue to slip?
-    json_file_name = arg
+"""kwargs is passed to db_mgr and are used to configure how data is stored"""
 
+
+def main(**kwargs):
+
+    # Initialize all measurement objects
     speed_and_dir = WindSpeedDirThread(
-        wind_measurement_time,
-        wind_measurement_interval * (int(60 / wind_measurement_time)),
+        WIND_MEASUREMENT_TIME,
+        WIND_MEASUREMENT_INTERVAL * (int(60 / WIND_MEASUREMENT_TIME)),
     )
 
     # Temperature, humidity, and pressure sensor
@@ -183,36 +209,43 @@ def main(arg=None):
     bme = bme280_sensor.temperature_sensor()
     therm = ds18b20_therm.DS18B20()
 
-    # Set start time to occur when second changes
+    # db_mgr opens Maria DB, optionally opens files to store CVS or jswon data.
+    # Must exit from main() if data cannot be saved.
+    try:
+        db_mgr = DataMgr(column_names, **kwargs)
+    except Exception as e:
+        logging.error("Error Cannot open data storage: %s", e)
+        raise
+
+    db_init = kwargs["db_init"]
+    db_init = db_init.strip()
+    try:
+        db = MariaDatabase(db_init)
+        db.open_db()
+    except Exception as e:
+        logging.error("Error opening MariaDB(): %s", e)
+
+    # Jusgt to be neat, Set start time to occur when second changes
     start_time = int(time.time()) + 1
     logging.debug("Start Time = {:.03f}".format(start_time))
 
-    # db = maria_database()
-
-    try:
-        db = maria_database(json_file_name)
-        db.open_db()
-    except Exception as e:
-        logging.warning("Error opening MariaDB(): %s", e)
-
+    # Infinite loop to measure sensor values CTRL-C required to exit.
     while True:
         logging.debug(
             "Start Time {:.03f} ; Current Time {:.03f}".format(start_time, time.time())
         )
-        # Assures that measurements are intergrated over min time period
+
         while start_time > time.time():
             time.sleep(0.01)
-            # logging.debug("Waiting Start time")
 
         # Run measurements for wind speed and direction
+        # This measurement runs for WIND_MEASUREMENT_INTERVAL minutes
         speed_and_dir.run()
-
-        # Wind speed and direction are measured over time and are now complete.
-        # Capture time stamp and all measurements.
-        # params = [time.strftime("%Y-%m-%d %H:%M:%S")]
 
         # Collect data from other sensors
         logging.info("Time of Measurement = {:.03f}".format(time.time()))
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         humidity, pressure, temperature = bme.read_all_bme820()
         humidity = round(humidity, 1)
         pressure = round(pressure, 1)
@@ -237,6 +270,9 @@ def main(arg=None):
         logging.info("Wind Gust = %.01f", wind_speed_gust)
         logging.info("Wind Direction = %3s", wind_direction_value)
 
+        """
+        # User can create a list of values based on measurement values
+        # or used the eval code below
         params = [
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             wind_speed_average,
@@ -248,13 +284,19 @@ def main(arg=None):
             ground_temperature,
             rainfall,
         ]
+        """
 
-        # Write to Weather Station DB
-        db.write_db(params)
+        # Loop through user supplyed variable names that contain the weather
+        # station data and put into a list. Must evaluate "name" to get the data.
+        params = []
+        for var in vars2params:
+            params.append(eval(var))
+
+        # update_entries requires data formated as tuple
+        db_mgr.update_entries(tuple(params))
 
         # Calculate next start time
-        start_time += wind_measurement_interval * 60
-
+        start_time += WIND_MEASUREMENT_INTERVAL * 60
         logging.info("Next Start Time = {:.03f}".format(start_time))
 
 
@@ -262,7 +304,7 @@ if __name__ == "__main__":
     try:
         json_file_name = None
         json_file_name = "json_backend_private.load"
-        main(json_file_name)
+        main(db_init=json_file_name)
     except Exception as e:
         logging.exception("Exception in main(): ")
         logging.warning("Error Exception in main(): %s", e)

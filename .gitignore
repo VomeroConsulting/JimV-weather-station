@@ -6,3 +6,4 @@
 __pycache__
 *_private.*
 Maria/SQL/*_private.*
+*.log

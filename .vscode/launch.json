@@ -5,11 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: jim_weather_station",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
+            "program": "${workspaceFolder}/jim_weather_station.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "diagnosticMode": "workspace",
+            "logging.level": "debug",
+            "debugStdLib": true
         }
     ]
 }
