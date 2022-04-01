@@ -4,16 +4,17 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: jim_weather_station",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/jim_weather_station.py",
             "console": "integratedTerminal",
-            "justMyCode": false,
             "diagnosticMode": "workspace",
             "logging.level": "debug",
-            "debugStdLib": true
+            "debugStdLib": true,
+            "justMyCode": false
         }
     ]
 }

@@ -137,7 +137,7 @@ class DataMgr:
             logging.debug("Network Issue, data entry not updated\n")
             logging.info("Network Issue, data entry not updated")
             self.data_entries.insert(0, data_entry)
-            logging.debug("Network Issue, len data_entries = %s\n", len(data_entries))
+            logging.debug("Network Issue, len data_entries = %s\n", len(self.data_entries))
 
         except Exception as e:
             # Non-Network error, will stop execution of main

@@ -71,7 +71,7 @@ class MariaDatabase:
             "password": self.password,
             "host": self.host,
             "database": self.db_name,
-            "connection_timeout": 5,
+            "connect_timeout": 5,
         }
 
         """ User must change db fields based on own implementation.
@@ -166,7 +166,8 @@ class MariaDatabase:
         try:
             logging.debug("Enter PING\n")
             # self.connection.ping(reconnect=True, attempts=3, delay=1)
-            if not self.connection.is_connected():
+            status = self.connection.is_connected()
+            if not status:
                 raise mysql.connector.errors.InterfaceError
             logging.debug("Exit PING\n")
             # self.connection.close()
