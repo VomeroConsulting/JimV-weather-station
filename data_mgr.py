@@ -29,6 +29,8 @@ class DataMgr:
 
         # class variables
         self.data_mgr_db = None
+        self.data_mgr_csv = None
+        self.data_mgr_flat = None
 
         # data_entries is designed to be elastic store for sensor data.
         # Build as a FIFO, occupancy will only be greather than one if
@@ -74,7 +76,9 @@ class DataMgr:
                 raise
 
         if self.flat_config:
-            self.data_mgr_flat = FlatDatabase(self.column_names, self.flat_config)
+            self.data_mgr_flat = flat_interface.FlatDatabase(
+                self.column_names, self.flat_config
+            )
             self.flat_enabled = True
 
         if self.csv_config:
@@ -124,7 +128,7 @@ class DataMgr:
             self._send2flat(params)
 
         if self.csv_enabled:
-            self._send2cvs(params)
+            self._send2csv(params)
 
     """update_entries takes a tuple of data as params.
     An FIFO is created containing tuples of data. In the event
@@ -182,9 +186,9 @@ class DataMgr:
             self.data_mgr_db.close_db()
 
     def _send2flat(self, params):
-        data_entry = ()
-        # push data into FIFO
-        self.data_entries_flat.append(params)
+        self.data_mgr_flat.open_db()
+        self.data_mgr_flat.send_data(params)
+        self.data_mgr_flat.close_db()
 
     def _send2csv(self, params):
         # data_entry = ()
