@@ -2,9 +2,17 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    //         "justMyCode": false,
     "version": "0.2.0",
     "configurations": [
-
+        {
+            "name": "Python: csv_interface",
+            "type": "python",
+            "request": "launch",
+            "program": "csv_interface.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
         {
             "name": "Python: jim_weather_station",
             "type": "python",
@@ -13,7 +21,6 @@
             "console": "integratedTerminal",
             "diagnosticMode": "workspace",
             "logging.level": "debug",
-            "debugStdLib": true,
             "justMyCode": false
         }
     ]

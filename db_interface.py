@@ -1,53 +1,47 @@
 import os
-import mysql.connector
-
-# from mysql.connector import errors
 import logging
 import json
 
+import mysql.connector
 
-class WarningNetworkIssue(Exception):
+
+class ErrorNetworkIssue(Exception):
     pass
 
 
 class MariaDatabase:
-    def __init__(self, column_names, arg=None):
-        """Maria database must be set up before running weather-station
-        APP. See SQL sub-directory for setup. The set-up credentials
-        includes and user, password and host. Defaults are
-        'pi@localhost with "raspberry password"""
+    """
+    Maria database must be set up before running weather-station
+    APP. See SQL sub-directory for setup. The set-up credentials
+    includes and user, password and host. Defaults are
+    'pi@localhost with "raspberry password
+    """
+
+    def __init__(self, column_names, db_config=None):
 
         self.column_names = column_names
 
-        # Allow for json file to be passed as argument
-        if not arg:
-            arg = "json_backend.load"
-        json_file = arg
-
         # Allows user to export OS variables,
         # otherwise generic defaults are used unless
-        # overwrites are provided in json file
+        # overwrites are provided in json load file
         self.username = os.environ.get("WS_USERNAME", "pi")
         self.password = os.environ.get("WS_PASSWORD", "raspberry")
         self.host = os.environ.get("WS_HOST", "localhost")
         self.db_name = os.environ.get("WS_DB_NAME", "weather_data")
         self.db_table = os.environ.get("WS_DB_TABLE", "sensors")
-        # self.db_write_fields = os.environ.get("WS_DB_WRITE_FIELDS")
-        # self.db_write_cmd = os.environ.get("WS_DB_WRITE_CMD")
-        # self.db_read_cmd = os.environ.get("WS_DB_READ_CMD")
 
         # Class specific variables
         self.connection = None
         self.cursor = None
 
+        # ToDo Need to decide if failed_connections should throw error
         self.failed_connection = 0
 
         # Default variables can be overwritten via json file,
         # This section is ignored if json file does not exist
-        try:
-            f = open(json_file, "r")
-            credentials = json.load(f)
-            f.close()
+        if db_config:
+            with open(db_config, "r") as f:
+                credentials = json.load(f)
 
             for key, value in credentials.items():
                 credentials[key] = value.strip()
@@ -62,38 +56,33 @@ class MariaDatabase:
                 if key == "WS_DB_TABLE":
                     self.db_table = value
 
-        except:
-            logging.info(f"JSON file {json_file} not found")
-
         # Set up Maria DB connection parameters
         self.connection_params = {
             "user": self.username,
             "password": self.password,
             "host": self.host,
             "database": self.db_name,
-            "connect_timeout": 5,
+            # "connect_timeout": 5,
         }
 
-        """ User must change db fields based on own implementation.
-        This section of code must be modified based on user implementation.
-        and match column names in database"""
-        self.db_write_fields = [
-            "time",
-            "ws_ave",
-            "ws_max",
-            "w_dir",
-            "humid",
-            "press",
-            "temp",
-            "therm",
-            "rain",
-        ]
-
         # SQL command portion of DB write
+        # if column_names list = [var1, var2] and table_name = sensors then
+        # column_names_str = 'var1, var2' and
+        # column_format_str = '%s, %s'
+        # self.db_write_cmd = 'INSERT INTO sensors VALUES (var1, var2) (%s, %s)
+
+        table_name_str = self.db_table
+        column_names_str = ", ".join(self.column_names)
+        column_format_str = ", ".join(["%s"] * len(self.column_names))
+
         self.db_write_cmd = (
-            "INSERT INTO {0} ({1}) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)".format(
-                self.db_table, ", ".join(self.column_names)
-            )
+            "INSERT INTO "
+            + table_name_str
+            + " ("
+            + column_names_str
+            + ") VALUES ("
+            + column_format_str
+            + ")"
         )
 
         # SQL read commenad is used only for testing this module,
@@ -104,194 +93,168 @@ class MariaDatabase:
                 self.db_table
             )
 
-    # Opens DB connection and connects cursor
+    """
+    Opens DB connection and connects cursor. In the event of a network issue,
+    a ErrorNetworkIssue is thrown.
+    """
+
     def open_db(self):
-        """Opens DB connection to host, any error should be caught by calling function"""
-        self.connection = mysql.connector.connect(**self.connection_params)
-        # self.cursor = self.connection.cursor()
-        return self.connection.is_connected()
-
-    # Connect to DB
-    def connect_db(self):
-        self.connection = mysql.connector.connect(**self.connection_params)
-        return self.connection.is_connected()
-
-    """
-    # Checks is connected and connects cursor
-    def get_cursor_db(self):
         try:
-            self.connection.ping(reconnect=True, attempts=3, delay=2)
-
-        except Error as e:
-            # InterfaceError
-            self.connection.close_db()
-            if self.connect_db()
-                self.failed_connection += 1
-                return False
-
-        finally:
+            self.connection = mysql.connector.connect(**self.connection_params)
             self.cursor = self.connection.cursor()
-    """
-
-    # Opens DB connection and connects cursor
-    def get_cursor_db(self):
-        self.connection.ping(reconnect=True, attempts=3, delay=1)
-        self.cursor = self.connection.cursor()
-
-    # Writes one row to DB
-    def write_db(self, params):
-        # Make sure connection is still good
-        try:
-            self.connection.ping(reconnect=True, attempts=3, delay=1)
-            # self.connection.close()
-
-            self.cursor = self.connection.cursor()
-
-            cmd = self.db_write_cmd
-            data = params
-            # data = tuple(params.values())
-            self.cursor.execute(cmd, data)
-            self.connection.commit()
-            self.cursor.close()
-
-        # except self.connection.Error as e:
-        except mysql.connector.Error as e:
-            logging.warning(f"Error Exception in write_db(): {e}")
-            self.connection.rollback()
-            raise
-
-    # Writes one row to DB
-    def write_one_db(self, entry):
-        # Make sure connection is still good
-        try:
-            logging.debug("Enter PING\n")
-            # self.connection.ping(reconnect=True, attempts=3, delay=1)
-            status = self.connection.is_connected()
-            if not status:
-                raise mysql.connector.errors.InterfaceError
-            logging.debug("Exit PING\n")
-            # self.connection.close()
-
-            try:
-                logging.debug("Enter Write One - Try\n")
-                self.cursor = self.connection.cursor()
-                cmd = self.db_write_cmd
-                self.cursor.execute(cmd, entry)
-                self.connection.commit()
-                self.cursor.close()
-                logging.debug("Exit Write One - Try\n")
-
-            except (
-                mysql.connector.OperationalError,
-                mysql.connector.errors.InterfaceError,
-            ) as e:
-                logging.debug(
-                    f"Error Exception in write_one_db() Operational Error: {e}"
-                )
-                logging.warning(
-                    f"Error Exception in write_one_db() Operational Error: {e}"
-                )
-                self.connection.rollback()
-                raise WarningNetworkIssue
-            except Exception as e:
-                raise
-
         except (
-            mysql.connector.errors.InterfaceError,
             mysql.connector.errors.OperationalError,
+            mysql.connector.errors.InterfaceError,
         ) as e:
-            logging.debug(f"Error Exception in write_one_db() Operational Error: {e}")
-            logging.warning(f"Error Exception in write_one_db() Operational Error: {e}")
-            raise WarningNetworkIssue
+            raise ErrorNetworkIssue
         except Exception as e:
-            logging.debug(f"Error Exception in write_one_db() NOT Caught: {e}")
-            raise
+            raise e
 
-    # Writes multiple rows to DB
-    # Need to consider error case when connection is temporaly lost,
-    # can queue multiple rows and send when connection restores.
-    def write_many_db(self, entries):
-        # Make sure connection is still good
+    """
+    send_data requires connection to DB before calling this function.
+    Also, routine does not close connection.
+    """
+
+    def send_data(self, entry, multi_entry=False):
+        # Write to database command the same for all INSERT INTO TABLE
+        cmd = self.db_write_cmd
+
+        if multi_entry:
+            if type(entry) is tuple:
+                entries = [entry]
+            elif type(entry) is list:
+                entries = entry
+            else:
+                # Data must be tuple or list of tuples
+                exit(1)
+
+        # Assumes connection is open and good
         try:
-            self.connection.ping(reconnect=True, attempts=3, delay=1)
-            # self.connection.close()
-
-            try:
-                self.cursor = self.connection.cursor()
-                # temp_data = entries
-
-                cmd = self.db_write_cmd
-
-                # while len(entries) > 0:
-                # row = entries.pop(0)
-                # data = entries.pop(0)
-                # self.cursor.execute(cmd, data)
+            if multi_entry:
                 self.cursor.executemany(cmd, entries)
-
-                self.connection.commit()
-                self.cursor.close()
-
-            # except errors.DatabaseError as e:
-            # except (mysql.connector.OperationalError) as e:
-            except (
-                mysql.connector.OperationalError,
-                mysql.connector.InterfaceError,
-            ) as e:
-                logging.warning(
-                    f"Error Exception in write_many_db() Operational Error: {e}"
-                )
-                self.connection.rollback()
-                entries = temp_data
-                raise WarningNetworkIssue
-            except Exception as e:
-                raise
+            else:
+                self.cursor.execute(cmd, entry)
+            self.connection.commit()
 
         except (mysql.connector.OperationalError, mysql.connector.InterfaceError) as e:
-            logging.info(
-                f"Exception in write_many_db() Operational or Interface Error: {e}"
-            )
-            raise WarningNetworkIssue
-
+            logging.debug(f"Warming Exception in write_one_db() Operational Error: {e}")
+            logging.warn(f"Warning Exception in write_one_db() Operational Error: {e}")
+            self.connection.rollback()
+            raise ErrorNetworkIssue
         except Exception as e:
-            raise
+            self.connection.rollback()
+            raise e
+
+    # Closes cursor and connection
+    def close_db(self):
+        self.cursor.close()
+        self.connection.close()
+
+    def is_connected_db(self):
+        return self.connection.is_connected()
+
+    # Following code not rigorously verified, use at own risk.
+    ##########
+    # The functions below are not used by the weather station app, but
+    # were provided for debug and test.
+    ##########
 
     """
-    def write_db(self, params):
-        try:
-            self.cursor = self.connection.cursor()
+    Opens DB connection to host, errors need to be managed by calling function.
+    """
 
+    def open_connection_db(self):
+        self.connection = mysql.connector.connect(**self.connection_params)
+        return self.connection.is_connected()
+
+    """
+    Closes DB connection to host, errors need to be managed by calling function.
+    """
+
+    def close_connection_db(self):
+        self.connection.close()
+
+    """
+    Opens DB cursor to host, errors need to be managed by calling function.
+    """
+
+    def open_cursor_db(self):
+        self.cursor = self.connection.cursor()
+
+    """
+    Closes DB cursor to host, errors need to be managed by calling function.
+    """
+
+    def close_cursor_db(self):
+        self.cursor.close()
+
+    """
+    Checks if database is connected.
+    """
+
+    """
+    Writes one row to DB. User must manage errors.
+    User must open connection and cursor.
+    """
+
+    def write_one_db(self, params):
+        try:
             cmd = self.db_write_cmd
-            # data = tuple(params)
-            data = tuple(params.values())
+            data = params
+
             self.cursor.execute(cmd, data)
             self.connection.commit()
-            self.cursor.close()
 
-        except self.connection.Error as e:
-            logging.warning(f"Error Exception in write_db(): {e}")
+        except Exceptions as e:
+            logging.warning(f"Error Exception in write_one_db(): {e}")
             self.connection.rollback()
-            raise
+            raise e
 
     """
+    Writes multiple rows to DB. User must manage errors.
+    User must open connection and cursor.
+    """
+
+    def write_many_db(self, params):
+        try:
+            cmd = self.db_write_cmd
+            data = params
+
+            self.cursor.executemany(cmd, data)
+            self.connection.commit()
+
+        except Exceptions as e:
+            logging.warning(f"Error Exception in write_one_db(): {e}")
+            self.connection.rollback()
+            raise e
+
     # Read DB is only used for testing this module
     def read_db(self):
         statement = self.db_read_cmd
         self.cursor.execute(statement)
         return self.cursor.fetchall()
 
-    # Closes cursor and connection if opened
-    def close_db(self):
-        if self.connection.is_connected():
-            self.cursor.close()
-            self.connection.close()
-
 
 if __name__ == "__main__":
     from datetime import datetime
     import time
 
+    """User must creater list of column names that matches one's own implemenation"""
+    column_names = [
+        "time",
+        "ws_ave",
+        "ws_max",
+        "w_dir",
+        "humid",
+        "press",
+        "temp",
+        "therm",
+        "rain",
+    ]
+
     # Open DB and cursor
-    db = MariaDatabase("json_backend_private.load")
+    # db = MariaDatabase(column_names, db_config="json_backend_private.load")
+    db = MariaDatabase(column_names, "json_backend_private.load")
     db.open_db()
 
     # Weather Station data
@@ -306,7 +269,7 @@ if __name__ == "__main__":
     params.append(6.6)
     params.append(7.7)
 
-    db.write_db(params)
+    db.send_data(tuple(params))
 
     # modify some of the data and update DB
     time.sleep(1)
@@ -315,10 +278,10 @@ if __name__ == "__main__":
     params[2] += 7
     params[3] = "SSE"
 
-    db.write_db(params)
+    db.send_data(tuple(params))
     db.close_db()
 
-    db_fe = MariaDatabase("json_frontend_private.load")
+    db_fe = MariaDatabase(column_names, "json_frontend_private.load")
     db_fe.open_db()
 
     # Read in some of the data

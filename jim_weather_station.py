@@ -217,15 +217,7 @@ def main(**kwargs):
         logging.error("Error Cannot open data storage: %s", e)
         raise
 
-    db_init = kwargs["db_init"]
-    db_init = db_init.strip()
-    try:
-        db = MariaDatabase(db_init)
-        db.open_db()
-    except Exception as e:
-        logging.error("Error opening MariaDB(): %s", e)
-
-    # Jusgt to be neat, Set start time to occur when second changes
+    # Just to be neat, Set start time to occur when second changes
     start_time = int(time.time()) + 1
     logging.debug("Start Time = {:.03f}".format(start_time))
 
@@ -302,9 +294,10 @@ def main(**kwargs):
 
 if __name__ == "__main__":
     try:
-        json_file_name = None
+        # json_file_name = None
         json_file_name = "json_backend_private.load"
-        main(db_init=json_file_name)
+        main(db_config=json_file_name)
+        # main(csv_config="/tmp/test_csv.csv")
     except Exception as e:
         logging.exception("Exception in main(): ")
         logging.warning("Error Exception in main(): %s", e)
