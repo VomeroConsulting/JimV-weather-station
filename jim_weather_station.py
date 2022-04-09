@@ -293,16 +293,24 @@ def main(**kwargs):
 
 
 if __name__ == "__main__":
+    from datetime import datetime
+
     try:
         # json_file_name = None
         json_file_name = "json_backend_private.load"
+
+        # configure file path
+        file_path = "/mnt/NAS/Weather_data/"
+        csv_config_file = "test_csv." + (datetime.today()).strftime("%y%m%d") + ".txt"
+        flat_config_file = "test_flat." + (datetime.today()).strftime("%y%m%d") + ".txt"
+
         # main(db_config=json_file_name)
         # main(db_config=json_file_name, csv_config="/tmp/test_csv.txt")
         # main(db_config=json_file_name, flat_config="/tmp/test_flat.txt")
         main(
             db_config=json_file_name,
-            csv_config="/tmp/test_csv.txt",
-            flat_config="/tmp/test_flat.txt",
+            csv_config=file_path + csv_config_file,
+            flat_config=file_path + flat_config_file,
         )
         # main(csv_config="/tmp/test_csv.csv")
     except Exception as e:
