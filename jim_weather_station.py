@@ -297,8 +297,13 @@ if __name__ == "__main__":
         # json_file_name = None
         json_file_name = "json_backend_private.load"
         # main(db_config=json_file_name)
-        # main(db_config=json_file_name, csv_config="/tmp/test_csv.csv")
-        main(db_config=json_file_name, flat_config="/tmp/test_flat.txt")
+        # main(db_config=json_file_name, csv_config="/tmp/test_csv.txt")
+        # main(db_config=json_file_name, flat_config="/tmp/test_flat.txt")
+        main(
+            db_config=json_file_name,
+            csv_config="/tmp/test_csv.txt",
+            flat_config="/tmp/test_flat.txt",
+        )
         # main(csv_config="/tmp/test_csv.csv")
     except Exception as e:
         logging.exception("Exception in main(): ")
