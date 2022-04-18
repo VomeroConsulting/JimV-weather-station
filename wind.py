@@ -20,7 +20,7 @@ anemometer_factor = 1.18
 
 # Programable variables
 wind_count = 0  # Global var Counts rotations of anemometer
-wind_measurement_time = 5  # In seconds, Report speed every 5 seconds
+wind_measurement_time = 60  # In seconds, Report speed every 5 seconds
 
 
 def spin():
@@ -32,8 +32,7 @@ def spin():
 def calculate_speed(time_sec):
     global wind_count
     global temp
-    # rotations = wind_count / 2.0
-    rotations = wind_count
+    rotations = wind_count / 2.0
 
     # Calculate distance
     dist_km = (circumference_cm * rotations) / CM_IN_A_KM

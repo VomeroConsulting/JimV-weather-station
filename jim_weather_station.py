@@ -13,7 +13,7 @@ import ds18b20_therm
 
 # local modules
 # from ws_database import MariaDatabase
-from db_interface import MariaDatabase
+# from db_interface import MariaDatabase
 import wind_direction
 from data_mgr import DataMgr
 
@@ -136,8 +136,7 @@ class WindSpeedDirThread:
         self.wind_speed_data = []
 
     def calculate_speed(self):
-        # rotations = wind_count / 2.0
-        rotations = wind_count
+        rotations = wind_count / 2.0
 
         # Calculate distance
         dist_km = (CIRCUMFERENCE_CM * rotations) / CM_IN_A_KM
@@ -301,16 +300,17 @@ if __name__ == "__main__":
 
         # configure file path
         file_path = "/mnt/NAS/Weather_data/"
-        csv_config_file = "test_csv." + (datetime.today()).strftime("%y%m%d") + ".txt"
-        flat_config_file = "test_flat." + (datetime.today()).strftime("%y%m%d") + ".txt"
+        file_date = (datetime.today()).strftime("%y%m%d")
+        flat_config_args = file_path + "flat_data." + file_date + ".txt"
+        csv_config_args = file_path + "csv_data." + file_date + ".txt"
 
         # main(db_config=json_file_name)
         # main(db_config=json_file_name, csv_config="/tmp/test_csv.txt")
         # main(db_config=json_file_name, flat_config="/tmp/test_flat.txt")
         main(
             db_config=json_file_name,
-            csv_config=file_path + csv_config_file,
-            flat_config=file_path + flat_config_file,
+            # csv_config=csv_config_args
+            flat_config=flat_config_args
         )
         # main(csv_config="/tmp/test_csv.csv")
     except Exception as e:

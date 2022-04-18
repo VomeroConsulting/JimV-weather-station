@@ -4,9 +4,7 @@ import json
 
 import mysql.connector
 
-
-class ErrorNetworkIssue(Exception):
-    pass
+from errors import ErrorNetworkIssue
 
 
 class MariaDatabase:

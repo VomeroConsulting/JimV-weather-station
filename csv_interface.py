@@ -1,9 +1,8 @@
 import os
 import logging
-
-# from os.path import exists
 import csv
 
+from errors import ErrorNetworkIssue
 
 class CsvDatabase:
     """ """

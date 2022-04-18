@@ -21,6 +21,7 @@
             "console": "integratedTerminal",
             "diagnosticMode": "workspace",
             "logging.level": "debug",
+            "debugStdLib": true,
             "justMyCode": false
         }
     ]

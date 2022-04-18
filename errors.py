@@ -1,0 +1,2 @@
+class ErrorNetworkIssue(Exception):
+	pass

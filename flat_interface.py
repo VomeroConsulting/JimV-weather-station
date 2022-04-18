@@ -2,6 +2,7 @@ import os
 import logging
 import json
 
+from errors import ErrorNetworkIssue
 
 class FlatDatabase:
     """ """
