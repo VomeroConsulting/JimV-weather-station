@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     while loop < 100:
         direction = d.get_direction()
-        # logging.info("Wind Dir = {}".format(direction))
+        logging.info("Wind Dir = {}".format(direction))
         print("Wind Dir = {}".format(direction))
 
         time.sleep(0.5)

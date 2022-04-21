@@ -309,8 +309,8 @@ if __name__ == "__main__":
         # main(db_config=json_file_name, flat_config="/tmp/test_flat.txt")
         main(
             db_config=json_file_name,
-            # csv_config=csv_config_args
-            flat_config=flat_config_args
+            csv_config=csv_config_args,
+            flat_config=flat_config_args,
         )
         # main(csv_config="/tmp/test_csv.csv")
     except Exception as e:
