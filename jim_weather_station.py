@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Weather Station code"""
 import math
 import time
