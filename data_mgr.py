@@ -1,4 +1,5 @@
 from db_interface import MariaDatabase
+
 # from db_interface import MariaDatabase, ErrorNetworkIssue
 import logging
 import os
@@ -64,16 +65,16 @@ class DataMgr:
         # Must exit main program if fails initial try to open.
         if self.mariadb:
             try:
-                logging.debug("MGR: Initial Connection to Database")
+                logging.info("MGR-DB: Initial Connection to Database")
                 self.data_mgr_db = MariaDatabase(self.column_names, self.db_config)
                 self.data_mgr_db.open_db()
                 self.db_enabled = self.data_mgr_db.is_connected_db()
                 self.data_mgr_db.close_db()
-                logging.debug("MGR: PASS Initial Connection to Database\n")
+                logging.info("MGR-DB: PASS Initial Connection to Database\n")
 
             except Exception as e:
                 # Note: Must exit main if cannot connect on first attempt
-                logging.error("Error opening MariaDB first time: %s", e)
+                logging.error("Error MGR-DB opening MariaDB first time: %s", e)
                 raise
 
         if self.data_file_flat:
@@ -103,7 +104,7 @@ class DataMgr:
                 self.data_mgr_db.write_one_db(params)
 
             except (ErrorNetworkIssue):
-                logging.debug("Network Issue, data entry not updated")
+                logging.info("Network Issue, data entry not updated")
                 raise ErrorNetworkIssue
 
             except Exception as e:
@@ -156,15 +157,14 @@ class DataMgr:
                 while len(self.data_entries_db) > 0:
                     # pop FIFO to get oldest data and write to DB
                     data_entry = self.data_entries_db.pop(0)
-                    logging.debug("MGR: Update Entry")
+                    logging.info("MGR: Update Entry")
                     self.data_mgr_db.send_data(data_entry)
 
             except (ErrorNetworkIssue):
                 # If network is problem, Push entry back into top of FIFO
                 # Next update will contain multiple entries
                 self.data_entries_db.insert(0, data_entry)
-                logging.debug("Network Issue, data entry not updated")
-                logging.warn("Network Issue, data entry not updated")
+                logging.info("Network Issue, data entry not updated")
                 pass
 
             except Exception as e:
@@ -178,15 +178,13 @@ class DataMgr:
 
         except ErrorNetworkIssue as e:
             # Keep processing data if network goes down
+            self.data_mgr_db.close_db()
             pass
 
         except Exception as e:
             # Non-Network error, will stop execution of main
-            raise
-
-        finally:
-            # Close upon exit
             self.data_mgr_db.close_db()
+            raise
 
     def _send2flat(self, params):
         data_entry = ()
@@ -197,11 +195,13 @@ class DataMgr:
         try:
             # subprocess.check_call(["timeout", 4, "ls", self.data_file_flat])
             if not os.path.exists(self.data_file_flat):
-               raise ErrorNetworkIssue
+                raise ErrorNetworkIssue
 
             # May need to enhance worning in future, e.g. send email.
             if len(self.data_entries_flat) > 1:
-                logging.warn("MRG-FLAT: Data Entries Queued = %s", len(self.data_entries_flat))
+                logging.warn(
+                    "MRG-FLAT: Data Entries Queued = %s", len(self.data_entries_flat)
+                )
 
             try:
                 self.data_mgr_flat.open_db()
@@ -209,14 +209,14 @@ class DataMgr:
                 while len(self.data_entries_flat) > 0:
                     # pop FIFO to get oldest data and write to DB
                     data_entry = self.data_entries_flat.pop(0)
-                    logging.debug("MGR-FLAT: Update Entry")
+                    logging.info("MGR-FLAT: Update Entry")
                     self.data_mgr_flat.send_data(data_entry)
 
             except (ErrorNetworkIssue):
                 # If network is problem, Push entry back into top of FIFO
                 # Next update will contain multiple entries
                 self.data_entries_flat.insert(0, data_entry)
-                logging.debug("Network Issue, data entry not updated")
+                logging.info("Network Issue, data entry not updated")
                 logging.warn("Network Issue, data entry not updated")
                 pass
 
@@ -239,7 +239,6 @@ class DataMgr:
             # Non-Network error, will stop execution of main
             raise
 
-
     def _send2csv(self, params):
         data_entry = ()
         # push data into FIFO
@@ -252,7 +251,9 @@ class DataMgr:
 
             # May need to enhance worning in future, e.g. send email.
             if len(self.data_entries_csv) > 1:
-                logging.warn("MRG-FLAT: Data Entries Queued = %s", len(self.data_entries_csv))
+                logging.warn(
+                    "MRG-FLAT: Data Entries Queued = %s", len(self.data_entries_csv)
+                )
 
             try:
                 self.data_mgr_csv.open_db()
@@ -260,14 +261,14 @@ class DataMgr:
                 while len(self.data_entries_csv) > 0:
                     # pop FIFO to get oldest data and write to DB
                     data_entry = self.data_entries_csv.pop(0)
-                    logging.debug("MGR-CSV: Update Entry")
+                    logging.info("MGR-CSV: Update Entry")
                     self.data_mgr_csv.send_data(data_entry)
 
             except (ErrorNetworkIssue):
                 # If network is problem, Push entry back into top of FIFO
                 # Next update will contain multiple entries
                 self.data_entries_csv.insert(0, data_entry)
-                logging.debug("Network Issue, data entry not updated")
+                logging.info("Network Issue, data entry not updated")
                 logging.warn("Network Issue, data entry not updated")
                 pass
 

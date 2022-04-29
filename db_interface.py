@@ -98,14 +98,20 @@ class MariaDatabase:
 
     def open_db(self):
         try:
+            logging.info("DB-IF: Try connect()")
             self.connection = mysql.connector.connect(**self.connection_params)
+            logging.info("DB-IF: Try cursor()")
             self.cursor = self.connection.cursor()
         except (
             mysql.connector.errors.OperationalError,
             mysql.connector.errors.InterfaceError,
         ) as e:
+            logging.info("DB-IF: Error OperationError or InterfaceError")
+            logging.info("DB-IF: Thrown %s", e)
             raise ErrorNetworkIssue
         except Exception as e:
+            logging.error("DB-IF: Error NOT OperationError or InterfaceError")
+            logging.error("DB-IF: Thrown %s", e)
             raise e
 
     """
@@ -129,26 +135,36 @@ class MariaDatabase:
         # Assumes connection is open and good
         try:
             if multi_entry:
+                logging.info("DB-IF: Try executemany()")
                 self.cursor.executemany(cmd, entries)
             else:
+                logging.info("DB-IF: Try execute()")
                 self.cursor.execute(cmd, entry)
+            logging.info("DB-IF: Try comit()")
             self.connection.commit()
 
         except (mysql.connector.OperationalError, mysql.connector.InterfaceError) as e:
-            logging.debug(f"Warming Exception in write_one_db() Operational Error: {e}")
-            logging.warn(f"Warning Exception in write_one_db() Operational Error: {e}")
+            logging.info("DB-IF: Error OperationError or InterfaceError")
+            logging.info("DB-IF: Thrown %s", e)
+            logging.info("DB-IF: Try rollback()")
             self.connection.rollback()
             raise ErrorNetworkIssue
         except Exception as e:
+            logging.error("DB-IF: Error NOT OperationError or InterfaceError")
+            logging.info("DB-IF: Thrown %s", e)
+            logging.info("DB-IF: Try rollback()")
             self.connection.rollback()
             raise e
 
     # Closes cursor and connection
     def close_db(self):
+        logging.info("DB-IF: Try cursor.close()")
         self.cursor.close()
+        logging.info("DB-IF: Try connection.close()")
         self.connection.close()
 
     def is_connected_db(self):
+        logging.info("DB-IF: Try connection.is_connected()")
         return self.connection.is_connected()
 
     # Following code not rigorously verified, use at own risk.
@@ -222,7 +238,7 @@ class MariaDatabase:
             self.connection.commit()
 
         except Exceptions as e:
-            logging.warning(f"Error Exception in write_one_db(): {e}")
+            logging.info(f"Error Exception in write_one_db(): {e}")
             self.connection.rollback()
             raise e
 

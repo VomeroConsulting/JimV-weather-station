@@ -28,13 +28,13 @@ logging.basicConfig(
 # root logger to STDERR
 # logging.basicConfig(level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s",
 )
 
 # Create file logger to captuer errors
 file_log = logging.FileHandler("weather_station.log", "w")
-file_log.setLevel(logging.DEBUG)
+file_log.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 file_log.setFormatter(formatter)
 logging.getLogger("").addHandler(file_log)
@@ -241,15 +241,15 @@ def main(**kwargs):
         humidity = round(humidity, 1)
         pressure = round(pressure, 1)
         temperature = round(temperature, 1)
-        logging.info("Humidity = {:.01f}".format(humidity))
-        logging.info("Pressure = {:.01f}".format(pressure))
-        logging.info("Temperature = {:.01f}".format(temperature))
+        logging.debug("Humidity = {:.01f}".format(humidity))
+        logging.debug("Pressure = {:.01f}".format(pressure))
+        logging.debug("Temperature = {:.01f}".format(temperature))
 
         ground_temperature = round(therm.read_temp(), 1)
-        logging.info("Ground Temperature = {:.01f}".format(ground_temperature))
+        logging.debug("Ground Temperature = {:.01f}".format(ground_temperature))
 
         rainfall = round(get_and_reset_rainfall(), 3)
-        logging.info("Rainfall = {:.03f}".format(rainfall))
+        logging.debug("Rainfall = {:.03f}".format(rainfall))
 
         wind_speed_average = speed_and_dir.get_wind_speed_average()
         wind_speed_average = round(wind_speed_average, 1)
@@ -257,9 +257,9 @@ def main(**kwargs):
         wind_speed_gust = round(wind_speed_gust, 1)
         wind_direction_value = speed_and_dir.get_wind_dir_mode()
 
-        logging.info("Wind Speed = %.01f", wind_speed_average)
-        logging.info("Wind Gust = %.01f", wind_speed_gust)
-        logging.info("Wind Direction = %3s", wind_direction_value)
+        logging.debug("Wind Speed = %.01f", wind_speed_average)
+        logging.debug("Wind Gust = %.01f", wind_speed_gust)
+        logging.debug("Wind Direction = %3s", wind_direction_value)
 
         """
         # User can create a list of values based on measurement values
