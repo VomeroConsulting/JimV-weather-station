@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Attach using Process Id",
+            "type": "python",
+            "request": "attach",
+            "program": "${workspaceFolder}/jim_weather_station.py",
+            "processId": "${command:pickProcess}",
+            "justMyCode": true
+        },
+        {
             "name": "Python: csv_interface",
             "type": "python",
             "request": "launch",

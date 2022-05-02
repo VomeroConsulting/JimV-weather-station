@@ -75,7 +75,7 @@ rain_count = 0  # Global to count number of times rain bucket tips
 """Wind speed and direction measurements are sampled over a period of time.
 ToDo: Add statement why time will slip with time/interval values"""
 WIND_MEASUREMENT_TIME = 7  # In seconds, Report speed every 7 seconds
-WIND_MEASUREMENT_INTERVAL = 1  # In minutes, Measurements recorded every 5 minutes
+WIND_MEASUREMENT_INTERVAL = 5  # In minutes, Measurements recorded every 5 minutes
 
 # Constants
 CM_IN_A_KM = 100000.0
@@ -310,7 +310,7 @@ if __name__ == "__main__":
         main(
             db_config=json_file_name,
             csv_config=csv_config_args,
-            flat_config=flat_config_args,
+            # flat_config=flat_config_args,
         )
         # main(csv_config="/tmp/test_csv.csv")
     except Exception as e:
