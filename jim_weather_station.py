@@ -1,3 +1,7 @@
+import debugpy
+
+debugpy.listen(5678)
+
 """Weather Station code"""
 import math
 import time
